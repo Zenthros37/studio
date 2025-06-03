@@ -85,4 +85,7 @@ export const mockResources: Resource[] = [
     grade: '9-12',
     addedBy: mockMentors[0],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), // 5 days ago
-    coverImageUrl: 'https://placehold.co/300x200
+    coverImageUrl: 'https://placehold.co/300x200.png',
+    aiHint: 'periodic table',
+  },
+];

@@ -1,7 +1,7 @@
 "use client";
 import ProtectedPage from '@/components/layout/ProtectedPage';
 import MemberCard from '@/components/shared/MemberCard';
-import { mockMembers }_from '@/lib/mock-data'; // Corrected import
+import { mockMembers } from '@/lib/mock-data'; // Corrected import
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
@@ -47,9 +47,9 @@ export default function MembersPage() {
 }
 
 // Correction for mockMembers import
-const mockMembers = []; 
-if (typeof require !== 'undefined' && require.cache) { // check if in node-like environment
-    Promise.resolve().then(() => {
-        const data = require('@/lib/mock-data');
-        if(data && data.mockMembers) {
-            (
+// const mockMembers = []; 
+// if (typeof require !== 'undefined' && require.cache) { // check if in node-like environment
+//     Promise.resolve().then(() => {
+//         const data = require('@/lib/mock-data');
+//         if(data && data.mockMembers) {
+//             (

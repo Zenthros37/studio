@@ -1,7 +1,7 @@
 "use client";
 import ProtectedPage from '@/components/layout/ProtectedPage';
 import ResourceCard from '@/components/shared/ResourceCard';
-import { mockResources }_from '@/lib/mock-data'; // Corrected import
+import { mockResources } from '@/lib/mock-data'; // Corrected import
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -94,13 +94,13 @@ const LibraryIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 // Correction for mockResources import
-const mockResources = [];
-if (typeof require !== 'undefined' && require.cache) { // check if in node-like environment
-    Promise.resolve().then(() => {
-        const data = require('@/lib/mock-data');
-        if(data && data.mockResources) {
-            (mockResources as any[]).push(...data.mockResources);
-        }
-    });
-}
+// const mockResources = [];
+// if (typeof require !== 'undefined' && require.cache) { // check if in node-like environment
+//     Promise.resolve().then(() => {
+//         const data = require('@/lib/mock-data');
+//         if(data && data.mockResources) {
+//             (mockResources as any[]).push(...data.mockResources);
+//         }
+//     });
+// }
 

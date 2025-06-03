@@ -130,4 +130,11 @@ export default function ChatPage() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
               <MessageSquare className="h-16 w-16 mb-4" />
-              <p className="text-lg">Select a conversation to start chatting
+              <p className="text-lg">Select a conversation to start chatting</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </ProtectedPage>
+  )
+}
