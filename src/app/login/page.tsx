@@ -1,8 +1,11 @@
+
 "use client";
 import LoginForm from '@/components/auth/LoginForm';
 import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+
 
 export default function LoginPage() {
   const { user, isLoading } = useUser();
@@ -10,12 +13,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      router.push('/'); // Redirect if already logged in
+      router.push('/feed'); // Redirect to feed if already logged in
     }
   }, [user, isLoading, router]);
 
   if (isLoading) {
-     return <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-primary/10">Loading...</div>;
+     return (
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-primary/10">
+             <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+     );
   }
   
   // Only show login form if not loading and no user
@@ -28,6 +35,10 @@ export default function LoginPage() {
   }
   
   // If user is loaded and exists, it means redirection is about to happen or has happened.
-  // Showing loading or null prevents flicker of login form.
-  return <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-primary/10">Redirecting...</div>;
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-primary/10">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-2">Redirecting...</p>
+    </div>
+  );
 }

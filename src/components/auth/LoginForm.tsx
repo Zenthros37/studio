@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -24,8 +25,7 @@ export default function LoginForm() {
 
     try {
       await loginWithEmail(email, password, selectedRole);
-      // Redirection is handled by ProtectedPage or login page effect after user state updates
-      // router.push('/'); // Not strictly needed here if UserContext updates trigger redirection
+      router.push('/feed'); // Redirect to feed page on successful login
       toast({ title: "Login Successful", description: `Welcome back, ${selectedRole}!` });
     } catch (error: any) {
       console.error("Login failed:", error);

@@ -1,3 +1,4 @@
+
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -17,7 +18,7 @@ import { Home, Users, Library, ClipboardList, Gamepad2, MessageSquare, BarChartB
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { href: '/', label: 'Feed', icon: Home, roles: ['student', 'mentor', 'admin'] },
+  { href: '/feed', label: 'Feed', icon: Home, roles: ['student', 'mentor', 'admin'] }, // Updated href
   { href: '/members', label: 'Members', icon: Users, roles: ['student', 'mentor', 'admin'] },
   { href: '/library', label: 'Library', icon: Library, roles: ['student', 'mentor', 'admin'] },
   { href: '/quizzes', label: 'Quizzes', icon: ClipboardList, roles: ['student', 'mentor', 'admin'] },

@@ -1,3 +1,4 @@
+
 "use client";
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,6 +34,8 @@ export default function AppHeader() {
     }
   }, [isDarkMode, mounted]);
 
+  const logoHref = user ? '/feed' : '/';
+
   if (!mounted) {
     return <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6"></header>; // Placeholder for SSR
   }
@@ -59,7 +62,7 @@ export default function AppHeader() {
              <span className="sr-only">Toggle Sidebar</span>
            </Button>
         )}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href={logoHref} className="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary">
             <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
             <path d="M2 17l10 5 10-5"></path>
