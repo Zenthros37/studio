@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Timestamp } from 'firebase/firestore';
 
 
 interface PostCardProps {
@@ -20,7 +21,9 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   const { user } = useUser();
-  const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+  // Convert Firestore Timestamp to Date for formatting
+  const createdAtDate = (post.createdAt as Timestamp)?.toDate ? (post.createdAt as Timestamp).toDate() : new Date();
+  const timeAgo = formatDistanceToNow(createdAtDate, { addSuffix: true });
 
   const canEditOrDelete = user?.id === post.author.id || user?.role === 'admin';
 

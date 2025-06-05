@@ -8,21 +8,35 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogIn } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('student@example.com'); // Default for easier testing
+  const [password, setPassword] = useState('password'); // Default for easier testing
   const [selectedRole, setSelectedRole] = useState<UserRole>('student');
-  const { login, isLoading } = useUser();
+  const { loginWithEmail, isLoading } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
-    // In a real app, you'd validate credentials against a backend
-    // For this demo, we just log in with the selected role.
-    login(selectedRole);
-    router.push('/'); // Redirect to dashboard/feed after login
+
+    try {
+      await loginWithEmail(email, password, selectedRole);
+      // Redirection is handled by ProtectedPage or login page effect after user state updates
+      // router.push('/'); // Not strictly needed here if UserContext updates trigger redirection
+      toast({ title: "Login Successful", description: `Welcome back, ${selectedRole}!` });
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      let errorMessage = "Login failed. Please check your credentials.";
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        errorMessage = "Invalid email or password.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many login attempts. Please try again later.";
+      }
+      toast({ title: "Login Error", description: errorMessage, variant: "destructive" });
+    }
   };
 
   return (
@@ -49,6 +63,7 @@ export default function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
             />
           </div>
           <div className="space-y-2">
@@ -60,6 +75,7 @@ export default function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
             />
           </div>
           <div className="space-y-2">
@@ -83,7 +99,7 @@ export default function LoginForm() {
       <CardFooter className="flex flex-col items-center text-sm">
         <p>Don't have an account? <span className="text-primary hover:underline cursor-pointer">Contact admin</span></p>
         <p className="mt-2 text-muted-foreground text-xs">
-          (For demo, any email/password works. Role selection is active.)
+          (For demo: student@example.com / password)
         </p>
       </CardFooter>
     </Card>
