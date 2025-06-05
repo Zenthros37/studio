@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { mockPosts } from '@/lib/mock-data'; // Import mock posts
 
 export default function FeedPage() {
   const { user } = useUser();
@@ -25,7 +26,7 @@ export default function FeedPage() {
   const canCreatePost = user?.role === 'mentor' || user?.role === 'admin';
 
   useEffect(() => {
-    if (!user) return; // Ensure user is loaded before fetching posts
+    if (!user) return; 
 
     setIsLoadingFeed(true);
     const postsCollectionRef = collection(db, 'posts');
@@ -38,7 +39,7 @@ export default function FeedPage() {
         fetchedPosts.push({
           id: doc.id,
           ...data,
-          createdAt: data.createdAt as Timestamp, // Firestore timestamp
+          createdAt: data.createdAt as Timestamp, 
         } as PostType);
       });
       setPosts(fetchedPosts);
@@ -46,9 +47,11 @@ export default function FeedPage() {
     }, (error) => {
       console.error("Error fetching posts: ", error);
       setIsLoadingFeed(false);
+      // Optionally set posts to mockPosts here on error too
+      // setPosts(mockPosts as PostType[]); 
     });
 
-    return () => unsubscribe(); // Cleanup subscription on unmount
+    return () => unsubscribe(); 
   }, [user]);
 
   const handleCreatePost = async () => {
@@ -56,7 +59,7 @@ export default function FeedPage() {
     setIsPosting(true);
     try {
       await addDoc(collection(db, 'posts'), {
-        author: { // Denormalize author info
+        author: { 
           id: user.id,
           name: user.name,
           avatarUrl: user.avatarUrl,
@@ -66,20 +69,20 @@ export default function FeedPage() {
         likes: 0,
         commentsCount: 0,
         createdAt: serverTimestamp(),
-        // mediaUrl and mediaType would be handled by image upload logic
       });
       setNewPostContent('');
     } catch (error) {
       console.error("Error creating post: ", error);
-      // Add user feedback (e.g., toast notification)
     }
     setIsPosting(false);
   };
   
-  if (!user) {
-    // ProtectedPage handles redirection, but this can be a fallback or initial state
-    return <div className="flex min-h-screen items-center justify-center">Loading user...</div>;
+  if (!user && !isLoadingFeed) { // If user is somehow null after initial load, ProtectedPage should handle it.
+     return <ProtectedPage><div>Redirecting...</div></ProtectedPage>;
   }
+
+
+  const displayPosts = !isLoadingFeed && posts.length === 0 ? mockPosts : posts;
 
   return (
     <ProtectedPage>
@@ -91,11 +94,11 @@ export default function FeedPage() {
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <Avatar className="h-10 w-10 mt-1">
-                   <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar small" />
-                   <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                   <AvatarImage src={user?.avatarUrl} alt={user?.name || 'User'} data-ai-hint="user avatar small" />
+                   <AvatarFallback>{user?.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <Textarea 
-                  placeholder={`What's on your mind, ${user.name}?`}
+                  placeholder={`What's on your mind, ${user?.name}?`}
                   className="flex-1 min-h-[80px] resize-none border-border focus-visible:ring-primary"
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
@@ -118,15 +121,18 @@ export default function FeedPage() {
           <>
             <Skeleton className="h-48 w-full rounded-lg" />
             <Skeleton className="h-48 w-full rounded-lg" />
+            <Skeleton className="h-48 w-full rounded-lg" />
           </>
         )}
 
-        {!isLoadingFeed && posts.map((post) => (
-          <PostCard key={post.id} post={post} />
-        ))}
-        {!isLoadingFeed && posts.length === 0 && (
+        {!isLoadingFeed && displayPosts.length === 0 && (
            <p className="text-center text-muted-foreground py-10">No posts yet. Be the first to share something!</p>
         )}
+        
+        {!isLoadingFeed && displayPosts.length > 0 && displayPosts.map((post) => (
+          <PostCard key={post.id} post={post} />
+        ))}
+
       </div>
     </ProtectedPage>
   );

@@ -1,3 +1,4 @@
+
 "use client";
 import ProtectedPage from '@/components/layout/ProtectedPage';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,11 +12,10 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, doc, updateDoc, Timestamp, setDoc, getDoc } from 'firebase/firestore';
 import type { Conversation as ConversationType, ChatMessage as ChatMessageType } from '@/lib/types';
 import { format } from 'date-fns';
+import { mockConversations, mockMessages as mockMessagesCollection } from '@/lib/mock-data';
 
 // Placeholder for creating a new conversation - actual implementation would be more complex
 async function getOrCreateConversation(currentUserUid: string, otherUserUid: string, otherUserName: string, otherUserAvatar: string, currentUserName: string, currentUserAvatar: string): Promise<string> {
-  // Check if a direct conversation already exists
-  // For simplicity, we'll create an ID based on sorted UIDs to ensure uniqueness for a pair
   const sortedParticipantIds = [currentUserUid, otherUserUid].sort();
   const conversationId = sortedParticipantIds.join('_');
   const conversationRef = doc(db, 'conversations', conversationId);
@@ -67,29 +67,41 @@ export default function ChatPage() {
       querySnapshot.forEach((doc) => {
         convos.push({ id: doc.id, ...doc.data() } as ConversationType);
       });
-      // Sort by last message timestamp, newest first
+      
       convos.sort((a, b) => {
         const timeA = (a.lastMessageTimestamp as Timestamp)?.toDate()?.getTime() || 0;
         const timeB = (b.lastMessageTimestamp as Timestamp)?.toDate()?.getTime() || 0;
         return timeB - timeA;
       });
-      setConversations(convos);
-      setIsLoadingConversations(false);
-      if (!selectedConversation && convos.length > 0) {
-         // setSelectedConversation(convos[0]); // Optionally auto-select first convo
+
+      if (convos.length === 0) {
+        setConversations(mockConversations.filter(mc => mc.participantIds.includes(user.id || 'student-1'))); // Filter mock convos for current user
+      } else {
+        setConversations(convos);
       }
+      setIsLoadingConversations(false);
     }, (error) => {
       console.error("Error fetching conversations: ", error);
+      // Fallback to mock data on error too
+      setConversations(mockConversations.filter(mc => mc.participantIds.includes(user.id || 'student-1')));
       setIsLoadingConversations(false);
     });
     return () => unsubscribe();
-  }, [user, selectedConversation]); // Added selectedConversation to dependencies to potentially refresh list if needed
+  }, [user]);
 
   useEffect(() => {
     if (!selectedConversation || !user) {
       setMessages([]);
       return;
     }
+
+    // If selected conversation is a mock one, load mock messages
+    if (selectedConversation.id.startsWith('mock-convo-')) {
+      setMessages(mockMessagesCollection[selectedConversation.id] || []);
+      setIsLoadingMessages(false);
+      return;
+    }
+
     setIsLoadingMessages(true);
     const messagesQuery = query(
       collection(db, 'conversations', selectedConversation.id, 'messages'),
@@ -100,10 +112,20 @@ export default function ChatPage() {
       querySnapshot.forEach((doc) => {
         msgs.push({ id: doc.id, ...doc.data() } as ChatMessageType);
       });
-      setMessages(msgs);
+
+      if (msgs.length === 0 && !selectedConversation.id.startsWith('mock-convo-') ) { // Check if not already showing mock messages
+         // Potentially show mock messages if Firestore is empty for a real convo ID (less common)
+         // For now, only explicitly load mock messages for mock conversation IDs.
+      } else {
+         setMessages(msgs);
+      }
       setIsLoadingMessages(false);
     }, (error) => {
       console.error("Error fetching messages: ", error);
+      // Fallback to mock messages for the selected mock conversation on error
+      if (selectedConversation.id.startsWith('mock-convo-')) {
+        setMessages(mockMessagesCollection[selectedConversation.id] || []);
+      }
       setIsLoadingMessages(false);
     });
     return () => unsubscribe();
@@ -112,6 +134,14 @@ export default function ChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation || !user || isSendingMessage) return;
+    
+    // Prevent sending messages to mock conversations in this example
+    if (selectedConversation.id.startsWith('mock-convo-')) {
+        alert("Cannot send messages in a mock conversation.");
+        setNewMessage('');
+        return;
+    }
+
     setIsSendingMessage(true);
     const messageData = {
       senderId: user.id,
@@ -122,7 +152,6 @@ export default function ChatPage() {
     };
     try {
       await addDoc(collection(db, 'conversations', selectedConversation.id, 'messages'), messageData);
-      // Update last message in conversation
       const conversationRef = doc(db, 'conversations', selectedConversation.id);
       await updateDoc(conversationRef, {
         lastMessageText: newMessage,
@@ -138,6 +167,23 @@ export default function ChatPage() {
   
   const getConversationDisplayInfo = (convo: ConversationType) => {
     if (!user) return { name: "Conversation", avatar: "", isGroup: convo.isGroup };
+    
+    // Handle mock conversation display name if user is one of the mock participants
+    if (convo.id.startsWith('mock-convo-')) {
+        if (convo.isGroup) {
+            return { name: convo.groupName || "Mock Group", avatar: convo.groupAvatar || 'https://placehold.co/40x40.png?text=MG', isGroup: true };
+        }
+        const otherMockParticipantId = convo.participantIds.find(id => id !== (user.id || 'student-1')); // Use 'student-1' if user.id is not yet available for mock context
+        if (otherMockParticipantId) {
+            return {
+                name: convo.participantNames?.[otherMockParticipantId] || "Mock User",
+                avatar: convo.participantAvatars?.[otherMockParticipantId] || `https://placehold.co/40x40.png?text=MU`,
+                isGroup: false
+            };
+        }
+    }
+
+    // Original logic for real conversations
     if (convo.isGroup) {
       return { name: convo.groupName || "Group Chat", avatar: convo.groupAvatar || 'https://placehold.co/40x40.png?text=G', isGroup: true };
     }
@@ -153,7 +199,9 @@ export default function ChatPage() {
   };
 
 
-  if (!user) return <ProtectedPage><div>Loading user...</div></ProtectedPage>;
+  if (!user && !isLoadingConversations) return <ProtectedPage><div>Loading user...</div></ProtectedPage>;
+
+  const displayConversations = conversations;
 
   return (
     <ProtectedPage>
@@ -172,10 +220,10 @@ export default function ChatPage() {
           <ScrollArea className="flex-1">
             {isLoadingConversations ? (
               <div className="p-4 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
-            ) : conversations.length === 0 ? (
-              <p className="p-4 text-center text-sm text-muted-foreground">No conversations yet.</p>
+            ) : displayConversations.length === 0 ? (
+              <p className="p-4 text-center text-sm text-muted-foreground">No conversations yet. (Or showing mock data if configured and empty)</p>
             ) : (
-              conversations.map(convo => {
+              displayConversations.map(convo => {
                 const displayInfo = getConversationDisplayInfo(convo);
                 const lastMsgTime = (convo.lastMessageTimestamp as Timestamp)?.toDate();
                 return (
@@ -211,7 +259,6 @@ export default function ChatPage() {
                 </Avatar>
                 <div>
                   <h3 className="font-semibold">{getConversationDisplayInfo(selectedConversation).name}</h3>
-                  {/* <p className="text-xs text-muted-foreground">Online</p>  Real-time status is complex */}
                 </div>
               </div>
               <ScrollArea className="flex-1 p-4 space-y-4">
@@ -221,10 +268,11 @@ export default function ChatPage() {
                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                         <MessageSquare className="h-12 w-12 mb-2"/>
                         <p>No messages yet. Say hello!</p>
+                        {selectedConversation.id.startsWith("mock-convo-") && <p className="text-xs">(Displaying mock chat)</p>}
                     </div>
                 ) : (
                   messages.map(msg => {
-                    const isOwn = msg.senderId === user.id;
+                    const isOwn = msg.senderId === (user?.id || 'student-1'); // Use mock current user ID if user not fully loaded
                     const msgTimestamp = (msg.timestamp as Timestamp)?.toDate();
                     return (
                       <div key={msg.id} className={`flex gap-2 ${isOwn ? 'justify-end' : ''}`}>
@@ -243,8 +291,8 @@ export default function ChatPage() {
                         </div>
                          {isOwn && (
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={msg.senderAvatar} alt={msg.senderName} data-ai-hint="chat avatar"/>
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={msg.senderAvatar || user?.avatarUrl} alt={msg.senderName || user?.name || 'User'} data-ai-hint="chat avatar"/>
+                            <AvatarFallback>{(user?.name || "U").charAt(0)}</AvatarFallback>
                           </Avatar>
                         )}
                       </div>
@@ -260,9 +308,9 @@ export default function ChatPage() {
                     className="flex-1"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    disabled={isSendingMessage || isLoadingMessages}
+                    disabled={isSendingMessage || isLoadingMessages || selectedConversation.id.startsWith('mock-convo-')}
                   />
-                  <Button type="submit" size="icon" disabled={isSendingMessage || !newMessage.trim()}>
+                  <Button type="submit" size="icon" disabled={isSendingMessage || !newMessage.trim() || selectedConversation.id.startsWith('mock-convo-') }>
                     {isSendingMessage ? <Loader2 className="h-5 w-5 animate-spin"/> : <Send className="h-5 w-5" />}
                   </Button>
                 </form>
