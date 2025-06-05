@@ -47,7 +47,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false); // Initial state can be true if a conversation might be pre-selected
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -75,14 +75,13 @@ export default function ChatPage() {
       });
 
       if (convos.length === 0) {
-        setConversations(mockConversations.filter(mc => mc.participantIds.includes(user.id || 'student-1'))); // Filter mock convos for current user
+        setConversations(mockConversations.filter(mc => mc.participantIds.includes(user.id || 'student-1'))); 
       } else {
         setConversations(convos);
       }
       setIsLoadingConversations(false);
     }, (error) => {
       console.error("Error fetching conversations: ", error);
-      // Fallback to mock data on error too
       setConversations(mockConversations.filter(mc => mc.participantIds.includes(user.id || 'student-1')));
       setIsLoadingConversations(false);
     });
@@ -92,17 +91,20 @@ export default function ChatPage() {
   useEffect(() => {
     if (!selectedConversation || !user) {
       setMessages([]);
+      setIsLoadingMessages(false); // Ensure loading is false if no selection
       return;
     }
 
-    // If selected conversation is a mock one, load mock messages
+    setIsLoadingMessages(true); // Set loading true at the start of fetching/setting messages
+
     if (selectedConversation.id.startsWith('mock-convo-')) {
-      setMessages(mockMessagesCollection[selectedConversation.id] || []);
+      const currentMockMessages = mockMessagesCollection[selectedConversation.id];
+      setMessages(currentMockMessages || []);
       setIsLoadingMessages(false);
-      return;
+      return; 
     }
 
-    setIsLoadingMessages(true);
+    // Real conversation message fetching
     const messagesQuery = query(
       collection(db, 'conversations', selectedConversation.id, 'messages'),
       orderBy('timestamp', 'asc')
@@ -112,20 +114,12 @@ export default function ChatPage() {
       querySnapshot.forEach((doc) => {
         msgs.push({ id: doc.id, ...doc.data() } as ChatMessageType);
       });
-
-      if (msgs.length === 0 && !selectedConversation.id.startsWith('mock-convo-') ) { // Check if not already showing mock messages
-         // Potentially show mock messages if Firestore is empty for a real convo ID (less common)
-         // For now, only explicitly load mock messages for mock conversation IDs.
-      } else {
-         setMessages(msgs);
-      }
+      setMessages(msgs); // Always update messages with fetched data, even if empty
       setIsLoadingMessages(false);
     }, (error) => {
       console.error("Error fetching messages: ", error);
-      // Fallback to mock messages for the selected mock conversation on error
-      if (selectedConversation.id.startsWith('mock-convo-')) {
-        setMessages(mockMessagesCollection[selectedConversation.id] || []);
-      }
+      // For real conversations, an error means no messages or an error message.
+      setMessages([]); 
       setIsLoadingMessages(false);
     });
     return () => unsubscribe();
@@ -135,7 +129,6 @@ export default function ChatPage() {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation || !user || isSendingMessage) return;
     
-    // Prevent sending messages to mock conversations in this example
     if (selectedConversation.id.startsWith('mock-convo-')) {
         alert("Cannot send messages in a mock conversation.");
         setNewMessage('');
@@ -168,12 +161,11 @@ export default function ChatPage() {
   const getConversationDisplayInfo = (convo: ConversationType) => {
     if (!user) return { name: "Conversation", avatar: "", isGroup: convo.isGroup };
     
-    // Handle mock conversation display name if user is one of the mock participants
     if (convo.id.startsWith('mock-convo-')) {
         if (convo.isGroup) {
             return { name: convo.groupName || "Mock Group", avatar: convo.groupAvatar || 'https://placehold.co/40x40.png?text=MG', isGroup: true };
         }
-        const otherMockParticipantId = convo.participantIds.find(id => id !== (user.id || 'student-1')); // Use 'student-1' if user.id is not yet available for mock context
+        const otherMockParticipantId = convo.participantIds.find(id => id !== (user.id || 'student-1'));
         if (otherMockParticipantId) {
             return {
                 name: convo.participantNames?.[otherMockParticipantId] || "Mock User",
@@ -183,7 +175,6 @@ export default function ChatPage() {
         }
     }
 
-    // Original logic for real conversations
     if (convo.isGroup) {
       return { name: convo.groupName || "Group Chat", avatar: convo.groupAvatar || 'https://placehold.co/40x40.png?text=G', isGroup: true };
     }
@@ -221,7 +212,7 @@ export default function ChatPage() {
             {isLoadingConversations ? (
               <div className="p-4 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
             ) : displayConversations.length === 0 ? (
-              <p className="p-4 text-center text-sm text-muted-foreground">No conversations yet. (Or showing mock data if configured and empty)</p>
+              <p className="p-4 text-center text-sm text-muted-foreground">No conversations found. Start a new chat!</p>
             ) : (
               displayConversations.map(convo => {
                 const displayInfo = getConversationDisplayInfo(convo);
@@ -268,11 +259,11 @@ export default function ChatPage() {
                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                         <MessageSquare className="h-12 w-12 mb-2"/>
                         <p>No messages yet. Say hello!</p>
-                        {selectedConversation.id.startsWith("mock-convo-") && <p className="text-xs">(Displaying mock chat)</p>}
+                        {selectedConversation.id.startsWith("mock-convo-") && <p className="text-xs">(This is a mock chat. Messages are predefined.)</p>}
                     </div>
                 ) : (
                   messages.map(msg => {
-                    const isOwn = msg.senderId === (user?.id || 'student-1'); // Use mock current user ID if user not fully loaded
+                    const isOwn = msg.senderId === (user?.id || 'student-1'); 
                     const msgTimestamp = (msg.timestamp as Timestamp)?.toDate();
                     return (
                       <div key={msg.id} className={`flex gap-2 ${isOwn ? 'justify-end' : ''}`}>
@@ -308,9 +299,9 @@ export default function ChatPage() {
                     className="flex-1"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    disabled={isSendingMessage || isLoadingMessages || selectedConversation.id.startsWith('mock-convo-')}
+                    disabled={isSendingMessage || isLoadingMessages || (selectedConversation?.id.startsWith('mock-convo-') && true) /* Explicitly disable for mock convos */}
                   />
-                  <Button type="submit" size="icon" disabled={isSendingMessage || !newMessage.trim() || selectedConversation.id.startsWith('mock-convo-') }>
+                  <Button type="submit" size="icon" disabled={isSendingMessage || !newMessage.trim() || (selectedConversation?.id.startsWith('mock-convo-') && true) /* Explicitly disable for mock convos */ }>
                     {isSendingMessage ? <Loader2 className="h-5 w-5 animate-spin"/> : <Send className="h-5 w-5" />}
                   </Button>
                 </form>
@@ -328,3 +319,5 @@ export default function ChatPage() {
     </ProtectedPage>
   )
 }
+    
+    
